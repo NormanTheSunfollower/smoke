@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smoke Monitor Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: white;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      padding: 25px;
+      border-radius: 20px;
+      width: 350px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .value {
+      font-size: 42px;
+      font-weight: 700;
+    }
+
+    .status {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+      margin: 10px 0;
+      display: inline-block;
+    }
+
+    .safe { background: #00c853; }
+    .danger { background: #d50000; }
+
+    canvas {
+      max-width: 700px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>🔥 Smoke Monitor</h2>
+  <div class="value" id="value">-</div>
+  <div class="status" id="status">-</div>
+  <div>Time: <span id="time">-</span> ms</div>
+</div>
+
+<canvas id="smokeChart"></canvas>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "pj-smoke.firebaseapp.com",
+  databaseURL: "https://pj-smoke-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "pj-smoke",
+  storageBucket: "pj-smoke.firebasestorage.app",
+  messagingSenderId: "1012737628527",
+  appId: "1:1012737628527:web:9b5b364cbf8f149344b09a"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const smokeRef = ref(database, "smoke");
+
+const ctx = document.getElementById('smokeChart').getContext('2d');
+
+let labels = [];
+let values = [];
+
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Smoke Value',
+      data: values,
+      borderWidth: 2,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  }
+});
+
+onValue(smokeRef, (snapshot) => {
+  const data = snapshot.val();
+
+  document.getElementById("value").innerText = data.value;
+  document.getElementById("time").innerText = data.time_ms;
+
+  const statusEl = document.getElementById("status");
+  statusEl.innerText = data.status;
+
+  if (data.status.toLowerCase().includes("danger")) {
+    statusEl.className = "status danger";
+    chart.data.datasets[0].borderColor = "#ff1744";
+  } else {
+    statusEl.className = "status safe";
+    chart.data.datasets[0].borderColor = "#00e676";
+  }
+
+  // เก็บ log 20 ค่า
+  labels.push(new Date().toLocaleTimeString());
+  values.push(data.value);
+
+  if (labels.length > 20) {
+    labels.shift();
+    values.shift();
+  }
+
+  chart.update();
+});
+</script>
+
+</body>
+</html>
