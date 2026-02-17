@@ -1,70 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Smoke Monitor Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
+      background: #0f2027;
       color: white;
     }
+    body {
+  background: #0f2027;
+  color: white;
+}
 
-    .card {
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(10px);
-      padding: 25px;
+h1, h2, h3, h4, h5, p, div {
+  color: white !important;
+}
+
+
+    .card-custom {
+      background: #1e2a38;
+      border: none;
       border-radius: 20px;
-      width: 350px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-      text-align: center;
-      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
 
-    .value {
-      font-size: 42px;
-      font-weight: 700;
+    .value-text {
+      font-size: 48px;
+      font-weight: bold;
     }
 
-    .status {
-      padding: 6px 14px;
+    .status-badge {
+      font-size: 18px;
+      padding: 8px 16px;
       border-radius: 20px;
-      font-weight: 600;
-      margin: 10px 0;
-      display: inline-block;
-    }
-
-    .safe { background: #00c853; }
-    .danger { background: #d50000; }
-
-    canvas {
-      max-width: 700px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 20px;
-      padding: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h2>🔥 Smoke Monitor</h2>
-  <div class="value" id="value">-</div>
-  <div class="status" id="status">-</div>
-  <div>Time: <span id="time">-</span> ms</div>
-</div>
+<div class="container py-5">
 
-<canvas id="smokeChart"></canvas>
+  <div class="text-center mb-4">
+    <h1 class="fw-bold">🔥 Smoke Monitor</h1>
+    <p class="text-secondary">Real-Time IoT Dashboard</p>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Value Card -->
+    <div class="col-md-4">
+      <div class="card card-custom text-center p-4">
+        <h5>Smoke Value</h5>
+        <div id="value" class="value-text">-</div>
+      </div>
+    </div>
+
+    <!-- Status Card -->
+    <div class="col-md-4">
+      <div class="card card-custom text-center p-4">
+        <h5>Status</h5>
+        <div id="status" class="status-badge bg-secondary">-</div>
+      </div>
+    </div>
+
+    <!-- Time Card -->
+    <div class="col-md-4">
+      <div class="card card-custom text-center p-4">
+        <h5>Last Update</h5>
+        <div id="time">-</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Chart -->
+  <div class="card card-custom p-4 mt-5">
+    <h5 class="mb-3">Smoke Graph</h5>
+    <canvas id="smokeChart"></canvas>
+  </div>
+
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -96,16 +121,15 @@ const chart = new Chart(ctx, {
     datasets: [{
       label: 'Smoke Value',
       data: values,
-      borderWidth: 2,
-      tension: 0.3
+      borderWidth: 3,
+      tension: 0.3,
+      borderColor: "#00e676"
     }]
   },
   options: {
     responsive: true,
     scales: {
-      y: {
-        beginAtZero: true
-      }
+      y: { beginAtZero: true }
     }
   }
 });
@@ -114,20 +138,32 @@ onValue(smokeRef, (snapshot) => {
   const data = snapshot.val();
 
   document.getElementById("value").innerText = data.value;
-  document.getElementById("time").innerText = data.time_ms;
+  document.getElementById("time").innerText = new Date().toLocaleTimeString();
 
   const statusEl = document.getElementById("status");
   statusEl.innerText = data.status;
 
-  if (data.status.toLowerCase().includes("danger")) {
-    statusEl.className = "status danger";
-    chart.data.datasets[0].borderColor = "#ff1744";
-  } else {
-    statusEl.className = "status safe";
-    chart.data.datasets[0].borderColor = "#00e676";
-  }
+const statusText = data.status.toLowerCase();
 
-  // เก็บ log 20 ค่า
+if (statusText.includes("danger")) {
+  statusEl.className = "status-badge bg-danger";
+  statusEl.style.color = "#ffffff";
+  chart.data.datasets[0].borderColor = "#ff1744";
+
+} else if (statusText.includes("warning")) {
+  statusEl.className = "status-badge";
+  statusEl.style.backgroundColor = "#ffff00"; // เหลือง
+  statusEl.style.color = "#ffffff";           // ตัวหนังสือขาว
+  chart.data.datasets[0].borderColor = "#ffff00";
+
+} else {
+  statusEl.className = "status-badge bg-success";
+  statusEl.style.color = "#ffffff";
+  chart.data.datasets[0].borderColor = "#00e676";
+}
+
+
+
   labels.push(new Date().toLocaleTimeString());
   values.push(data.value);
 
