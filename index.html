@@ -1,224 +1,168 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>🔥 Smoke Monitor Pro</title>
+<title>Environmental Dashboard</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
-  background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-  color: white;
-  font-family: 'Segoe UI', sans-serif;
+body{
+  background:linear-gradient(135deg,#1ce0e7,#c48a34);
+  min-height:100vh;
 }
-
-.card-box {
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 25px;
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+.glass{
+  background:rgba(255,255,255,0.15);
+  backdrop-filter:blur(15px);
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,0.3);
+  box-shadow:0 8px 32px rgba(0,0,0,0.2);
+  color:white;
 }
-
-.value-big {
-  font-size: 60px;
-  font-weight: bold;
+.card{
+  background:rgba(255,255,255,0.2);
+  backdrop-filter:blur(10px);
+  border:none;
+  color:white;
 }
-
-.status-badge {
-  padding: 8px 20px;
-  border-radius: 30px;
-  font-size: 18px;
-  font-weight: bold;
-}
-
-canvas {
-  background: rgba(0,0,0,0.3);
-  border-radius: 15px;
-  padding: 10px;
+canvas{
+  height:350px !important;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container py-5">
+<nav class="navbar navbar-expand-lg glass m-3 px-4">
+  <a class="navbar-brand text-white fw-bold" href="#">Env Monitor</a>
+  <div class="ms-auto">
+    <a href="index.html" class="btn btn-outline-light me-2">Dashboard</a>
+    <a href="logs.html" class="btn btn-outline-light">Logs</a>
+  </div>
+</nav>
 
-<div class="text-center mb-5">
-  <h1 class="fw-bold">🔥 Smoke Monitor Pro</h1>
-  <p class="text-light">Realtime IoT Dashboard</p>
+<div class="container">
+
+<div class="glass text-center p-4 mb-4">
+  <h1>Environmental Monitoring Dashboard</h1>
 </div>
 
-<div class="row g-4 mb-4">
+<div class="row g-4">
 
-  <div class="col-md-4">
-    <div class="card-box">
-      <h5>Smoke Value</h5>
-      <div id="value" class="value-big">-</div>
-      <div>ppm</div>
-    </div>
-  </div>
-
-  <div class="col-md-4">
-    <div class="card-box">
-      <h5>Status</h5>
-      <div id="status" class="status-badge bg-secondary">-</div>
-    </div>
-  </div>
-
-  <div class="col-md-4">
-    <div class="card-box">
-      <h5>Last Update</h5>
-      <div id="time">-</div>
-    </div>
-  </div>
-
+<div class="col-12">
+<div class="card p-3">
+<h5>Temperature (°C)</h5>
+<canvas id="tempChart"></canvas>
+</div>
 </div>
 
-<div class="card-box">
-  <h5 class="mb-3">Smoke Graph (0–1000 ppm)</h5>
-  <canvas id="smokeChart"></canvas>
-
-  <div class="mt-4 text-end">
-    <button class="btn btn-success" onclick="exportCSV()">Export CSV Log</button>
-  </div>
+<div class="col-12">
+<div class="card p-3">
+<h5>Humidity (%RH)</h5>
+<canvas id="humChart"></canvas>
+</div>
 </div>
 
+<div class="col-12">
+<div class="card p-3">
+<h5>PM2.5 (µg/m³)</h5>
+<canvas id="pm25Chart"></canvas>
+</div>
+</div>
+
+<div class="col-12">
+<div class="card p-3">
+<h5>PM10 (µg/m³)</h5>
+<canvas id="pm10Chart"></canvas>
+</div>
+</div>
+
+</div>
 </div>
 
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-/* ใส่ config ของคุณให้ครบ */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "pj-smoke.firebaseapp.com",
-  databaseURL: "https://pj-smoke-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "pj-smoke",
-  storageBucket: "pj-smoke.firebasestorage.app",
-  messagingSenderId: "1012737628527",
-  appId: "1:1012737628527:web:9b5b364cbf8f149344b09a"
+  apiKey: "AIzaSyDaAWmaVhmihX3V2aToTpFFSnhwhl3mNSs",
+  authDomain: "pj-smoke-part-2.firebaseapp.com",
+  databaseURL: "https://pj-smoke-part-2-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "pj-smoke-part-2"
 };
 
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const smokeRef = ref(database, "smokeLogs");
+const db = getDatabase(app);
 
-let allLogs = [];
+let labels=[],tempData=[],humData=[],pm25Data=[],pm10Data=[];
 
-const ctx = document.getElementById('smokeChart');
-
-const chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [{
-      label: 'Smoke (ppm)',
-      data: [],
-      borderWidth: 3,
-      tension: 0.3,
-      borderColor: "#00e676"
-    }]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: {
-        min: 0,
-        max: 1000,
-        ticks: { stepSize: 100 }
-      }
+function createChart(id,label,data){
+  return new Chart(document.getElementById(id),{
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[{
+        label:label,
+        data:data,
+        borderColor:"#000000",
+        borderWidth:2,
+        tension:0.4,
+        fill:false
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      scales:{
+        x:{ticks:{color:"#000"}},
+        y:{ticks:{color:"#000"}}
+      },
+      plugins:{legend:{labels:{color:"#000"}}}
     }
-  }
-});
+  });
+}
 
-onValue(smokeRef, (snapshot) => {
+let tempChart=createChart("tempChart","Temperature (°C)",tempData);
+let humChart=createChart("humChart","Humidity (%RH)",humData);
+let pm25Chart=createChart("pm25Chart","PM2.5 (µg/m³)",pm25Data);
+let pm10Chart=createChart("pm10Chart","PM10 (µg/m³)",pm10Data);
 
-  const data = snapshot.val();
-  if (!data) return;
+onValue(ref(db,"envLogs"),(snapshot)=>{
 
-  const entries = Object.values(data);
-  entries.sort((a,b) => a.timestamp - b.timestamp);
+  let t=[],h=[],p25=[],p10=[],time=[];
 
-  allLogs = entries;
-
-  const recent = entries.slice(-100);
-
-  const labels = [];
-  const values = [];
-
-  recent.forEach(item => {
-    labels.push(new Date(item.timestamp * 1000).toLocaleTimeString());
-    values.push(item.value);
+  snapshot.forEach(child=>{
+    let d=child.val();
+    time.push(new Date(d.timestamp*1000).toLocaleTimeString());
+    t.push(d.temperature);
+    h.push(d.humidity);
+    p25.push(d.pm25);
+    p10.push(d.pm10);
   });
 
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = values;
+  labels=time.slice(-8);
+  tempData=t.slice(-8);
+  humData=h.slice(-8);
+  pm25Data=p25.slice(-8);
+  pm10Data=p10.slice(-8);
 
-  const last = recent[recent.length - 1];
+  tempChart.data.labels=labels;
+  tempChart.data.datasets[0].data=tempData;
+  tempChart.update();
 
-  document.getElementById("value").innerText = last.value;
-  document.getElementById("time").innerText =
-    new Date(last.timestamp * 1000).toLocaleString();
+  humChart.data.labels=labels;
+  humChart.data.datasets[0].data=humData;
+  humChart.update();
 
-  const statusEl = document.getElementById("status");
-  statusEl.innerText = last.status;
+  pm25Chart.data.labels=labels;
+  pm25Chart.data.datasets[0].data=pm25Data;
+  pm25Chart.update();
 
-  const s = last.status.toLowerCase();
-
-  if (s.includes("danger")) {
-    statusEl.className = "status-badge";
-    statusEl.style.backgroundColor = "#ff1744";
-    statusEl.style.color = "#ffffff";
-    chart.data.datasets[0].borderColor = "#ff1744";
-
-  } else if (s.includes("warning")) {
-    statusEl.className = "status-badge";
-    statusEl.style.backgroundColor = "#ffff00";
-    statusEl.style.color = "#000000";
-    chart.data.datasets[0].borderColor = "#ffff00";
-
-  } else {
-    statusEl.className = "status-badge";
-    statusEl.style.backgroundColor = "#00e676";
-    statusEl.style.color = "#000000";
-    chart.data.datasets[0].borderColor = "#00e676";
-  }
-
-  chart.update();
+  pm10Chart.data.labels=labels;
+  pm10Chart.data.datasets[0].data=pm10Data;
+  pm10Chart.update();
 });
-
-window.exportCSV = function() {
-
-  if (allLogs.length === 0) {
-    alert("No data available");
-    return;
-  }
-
-  let csv = "Timestamp,DateTime,SmokeValue(ppm),Status\n";
-
-  allLogs.forEach(item => {
-    const date = new Date(item.timestamp * 1000).toLocaleString();
-    csv += `${item.timestamp},${date},${item.value},${item.status}\n`;
-  });
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "smoke_log.csv";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
 </script>
 
 </body>
