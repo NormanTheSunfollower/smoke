@@ -11,6 +11,7 @@ body{
   background:linear-gradient(135deg,#667eea,#764ba2);
   min-height:100vh;
 }
+
 .glass{
   background:rgba(255,255,255,0.15);
   backdrop-filter:blur(15px);
@@ -19,11 +20,28 @@ body{
   box-shadow:0 8px 32px rgba(0,0,0,0.2);
   color:white;
 }
-.table td,.table th{color:black;}
 
-.safe{background:rgba(0,255,0,0.2);}
-.warning{background:rgba(255,255,0,0.3);}
-.danger{background:rgba(255,0,0,0.3);}
+.table td,.table th{
+  color:black;
+}
+
+/* Warning */
+.warning{
+  background-color:#fff3cd !important;
+}
+
+/* Danger */
+.danger{
+  background-color:#f8d7da !important;
+  animation: pulse 1.5s infinite;
+}
+
+/* Pulse Animation */
+@keyframes pulse{
+  0%{opacity:1;}
+  50%{opacity:0.7;}
+  100%{opacity:1;}
+}
 </style>
 </head>
 
@@ -41,6 +59,7 @@ body{
 <div class="glass p-4">
 
 <h4 class="mb-3">Filter by Date</h4>
+
 <div class="d-flex gap-3 mb-4">
   <input type="date" id="datePicker" class="form-control w-auto">
   <button id="exportBtn" class="btn btn-success">Export CSV</button>
@@ -66,8 +85,10 @@ body{
 </div>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, query, onValue, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, query, onValue, limitToLast } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDaAWmaVhmihX3V2aToTpFFSnhwhl3mNSs",
@@ -75,69 +96,91 @@ const firebaseConfig = {
   databaseURL: "https://pj-smoke-part-2-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "pj-smoke-part-2"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let fullData=[];
+let fullData = [];
 
+/* ---------- FORMAT DATE ---------- */
 function formatDate(timestamp){
-  const date=new Date(timestamp*1000);
 
-  const day=String(date.getDate()).padStart(2,'0');
-  const month=String(date.getMonth()+1).padStart(2,'0');
-  const year=date.getFullYear();
+  const date = new Date(timestamp * 1000);
 
-  const hours=String(date.getHours()).padStart(2,'0');
-  const minutes=String(date.getMinutes()).padStart(2,'0');
-  const seconds=String(date.getSeconds()).padStart(2,'0');
+  const options = {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  };
+
+  const formatted = new Intl.DateTimeFormat("en-GB", options).format(date);
+  const [day, month, rest] = formatted.split("/");
+  const [year, time] = rest.split(", ");
 
   return {
-    display:`${day}/${month}/${year} ${hours}:${minutes}:${seconds}`,
-    iso:`${year}-${month}-${day}`
+    display: `${day}/${month}/${year} ${time}`,
+    iso: `${year}-${month}-${day}`
   };
 }
 
-function getStatus(pm25,pm10){
-  if(pm25>75||pm10>150)
-    return {text:"Danger",class:"danger"};
-  else if(pm25>25||pm10>50)
-    return {text:"Warning",class:"warning"};
+/* ---------- STATUS LOGIC ---------- */
+function getStatus(pm25, pm10){
+
+  if(pm25 > 75 || pm10 > 150)
+    return {text:"🚨 Danger", class:"danger"};
+
+  else if(pm25 > 25 || pm10 > 50)
+    return {text:"⚠️ Warning", class:"warning"};
+
   else
-    return {text:"Safe",class:"safe"};
+    return {text:"✅ Safe", class:""};
 }
 
-const logQuery=query(ref(db,"envLogs"),limitToLast(500));
+/* ---------- LOAD DATA ---------- */
+const logQuery = query(ref(db,"envLogs"), limitToLast(500));
 
-onValue(logQuery,(snapshot)=>{
-  fullData=[];
+onValue(logQuery, (snapshot)=>{
+
+  fullData = [];
+
   snapshot.forEach(child=>{
     fullData.push(child.val());
   });
+
   renderTable();
 });
 
+/* ---------- RENDER TABLE ---------- */
 function renderTable(){
 
-  const selectedDate=document.getElementById("datePicker").value;
-  const table=document.getElementById("logTable");
-  table.innerHTML="";
+  const selectedDate = document.getElementById("datePicker").value;
+  const table = document.getElementById("logTable");
+  table.innerHTML = "";
 
-  const fragment=document.createDocumentFragment();
+  const fragment = document.createDocumentFragment();
 
   fullData
   .sort((a,b)=>b.timestamp-a.timestamp)
   .forEach(d=>{
 
-    const dateInfo=formatDate(d.timestamp);
+    const dateInfo = formatDate(d.timestamp);
 
-    if(selectedDate && dateInfo.iso!==selectedDate) return;
+    if(selectedDate && dateInfo.iso !== selectedDate) return;
 
-    const status=getStatus(d.pm25,d.pm10);
+    const status = getStatus(d.pm25, d.pm10);
 
-    const row=document.createElement("tr");
-    row.className=status.class;
+    const row = document.createElement("tr");
 
-    row.innerHTML=`
+    if(status.class !== ""){
+      row.classList.add(status.class);
+    }
+
+    row.innerHTML = `
       <td>${dateInfo.display}</td>
       <td>${d.temperature.toFixed(2)}</td>
       <td>${d.humidity.toFixed(2)}</td>
@@ -152,30 +195,37 @@ function renderTable(){
   table.appendChild(fragment);
 }
 
-document.getElementById("datePicker").addEventListener("change",renderTable);
+/* ---------- DATE FILTER ---------- */
+document.getElementById("datePicker")
+.addEventListener("change", renderTable);
 
-document.getElementById("exportBtn").addEventListener("click",()=>{
+/* ---------- EXPORT CSV ---------- */
+document.getElementById("exportBtn")
+.addEventListener("click", ()=>{
 
-  const selectedDate=document.getElementById("datePicker").value;
+  const selectedDate = document.getElementById("datePicker").value;
+
   if(!selectedDate){
     alert("Please select a date first");
     return;
   }
 
-  let csv="Time,Temperature (°C),Humidity (%),PM2.5 (µg/m³),PM10 (µg/m³)\n";
+  let csv = "Time,Temperature (°C),Humidity (%),PM2.5 (µg/m³),PM10 (µg/m³)\n";
 
   fullData.forEach(d=>{
-    const dateInfo=formatDate(d.timestamp);
-    if(dateInfo.iso===selectedDate){
-      csv+=`${dateInfo.display},${d.temperature},${d.humidity},${d.pm25},${d.pm10}\n`;
+    const dateInfo = formatDate(d.timestamp);
+
+    if(dateInfo.iso === selectedDate){
+      csv += `${dateInfo.display},${d.temperature},${d.humidity},${d.pm25},${d.pm10}\n`;
     }
   });
 
-  const blob=new Blob([csv],{type:"text/csv"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download=`env_log_${selectedDate}.csv`;
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `env_log_${selectedDate}.csv`;
   a.click();
 });
 </script>
