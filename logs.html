@@ -25,18 +25,15 @@ body{
   color:black;
 }
 
-/* Warning */
 .warning{
   background-color:#fff3cd !important;
 }
 
-/* Danger */
 .danger{
   background-color:#f8d7da !important;
   animation: pulse 1.5s infinite;
 }
 
-/* Pulse Animation */
 @keyframes pulse{
   0%{opacity:1;}
   50%{opacity:0.7;}
@@ -74,6 +71,7 @@ body{
 <th>Humidity (%)</th>
 <th>PM2.5 (µg/m³)</th>
 <th>PM10 (µg/m³)</th>
+<th>Gas (MQ2)</th> <!-- ⭐ เพิ่ม -->
 <th>Status</th>
 </tr>
 </thead>
@@ -91,7 +89,7 @@ import { getDatabase, ref, query, onValue, limitToLast }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDaAWmaVhmihX3V2aToTpFFSnhwhl3mNSs",
+  apiKey: "YOUR_API_KEY",
   authDomain: "pj-smoke-part-2.firebaseapp.com",
   databaseURL: "https://pj-smoke-part-2-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "pj-smoke-part-2"
@@ -102,7 +100,6 @@ const db = getDatabase(app);
 
 let fullData = [];
 
-/* ---------- FORMAT DATE ---------- */
 function formatDate(timestamp){
 
   const date = new Date(timestamp * 1000);
@@ -128,20 +125,19 @@ function formatDate(timestamp){
   };
 }
 
-/* ---------- STATUS LOGIC ---------- */
-function getStatus(pm25, pm10){
+/* ⭐ เพิ่ม gas เข้า logic */
+function getStatus(pm25, pm10, gas){
 
-  if(pm25 > 75 || pm10 > 150)
+  if(pm25 > 75 || pm10 > 150 || gas > 600)
     return {text:"🚨 Danger", class:"danger"};
 
-  else if(pm25 > 25 || pm10 > 50)
+  else if(pm25 > 25 || pm10 > 50 || gas > 400)
     return {text:"⚠️ Warning", class:"warning"};
 
   else
     return {text:"✅ Safe", class:""};
 }
 
-/* ---------- LOAD DATA ---------- */
 const logQuery = query(ref(db,"envLogs"), limitToLast(500));
 
 onValue(logQuery, (snapshot)=>{
@@ -155,7 +151,6 @@ onValue(logQuery, (snapshot)=>{
   renderTable();
 });
 
-/* ---------- RENDER TABLE ---------- */
 function renderTable(){
 
   const selectedDate = document.getElementById("datePicker").value;
@@ -172,7 +167,7 @@ function renderTable(){
 
     if(selectedDate && dateInfo.iso !== selectedDate) return;
 
-    const status = getStatus(d.pm25, d.pm10);
+    const status = getStatus(d.pm25, d.pm10, d.gas);
 
     const row = document.createElement("tr");
 
@@ -186,6 +181,7 @@ function renderTable(){
       <td>${d.humidity.toFixed(2)}</td>
       <td>${d.pm25}</td>
       <td>${d.pm10}</td>
+      <td>${d.gas ?? "-"}</td>  <!-- ⭐ แสดง gas -->
       <td><strong>${status.text}</strong></td>
     `;
 
@@ -195,11 +191,9 @@ function renderTable(){
   table.appendChild(fragment);
 }
 
-/* ---------- DATE FILTER ---------- */
 document.getElementById("datePicker")
 .addEventListener("change", renderTable);
 
-/* ---------- EXPORT CSV ---------- */
 document.getElementById("exportBtn")
 .addEventListener("click", ()=>{
 
@@ -210,13 +204,13 @@ document.getElementById("exportBtn")
     return;
   }
 
-  let csv = "Time,Temperature (°C),Humidity (%),PM2.5 (µg/m³),PM10 (µg/m³)\n";
+  let csv = "Time,Temperature (°C),Humidity (%),PM2.5 (µg/m³),PM10 (µg/m³),Gas (MQ2)\n";
 
   fullData.forEach(d=>{
     const dateInfo = formatDate(d.timestamp);
 
     if(dateInfo.iso === selectedDate){
-      csv += `${dateInfo.display},${d.temperature},${d.humidity},${d.pm25},${d.pm10}\n`;
+      csv += `${dateInfo.display},${d.temperature},${d.humidity},${d.pm25},${d.pm10},${d.gas}\n`;
     }
   });
 

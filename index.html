@@ -78,6 +78,14 @@ canvas{
 </div>
 </div>
 
+<!-- ⭐ เพิ่ม Gas ตรงนี้ -->
+<div class="col-12">
+<div class="card p-3">
+<h5>Gas Level (MQ2)</h5>
+<canvas id="gasChart"></canvas>
+</div>
+</div>
+
 </div>
 </div>
 
@@ -95,7 +103,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let labels=[],tempData=[],humData=[],pm25Data=[],pm10Data=[];
+let labels=[],tempData=[],humData=[],pm25Data=[],pm10Data=[],gasData=[];
 
 function createChart(id,label,data){
   return new Chart(document.getElementById(id),{
@@ -127,18 +135,27 @@ let tempChart=createChart("tempChart","Temperature (°C)",tempData);
 let humChart=createChart("humChart","Humidity (%RH)",humData);
 let pm25Chart=createChart("pm25Chart","PM2.5 (µg/m³)",pm25Data);
 let pm10Chart=createChart("pm10Chart","PM10 (µg/m³)",pm10Data);
+let gasChart=createChart("gasChart","Gas Level",gasData); // ⭐ เพิ่ม
 
 onValue(ref(db,"envLogs"),(snapshot)=>{
 
-  let t=[],h=[],p25=[],p10=[],time=[];
+  let t=[],h=[],p25=[],p10=[],g=[],time=[];
 
   snapshot.forEach(child=>{
     let d=child.val();
-    time.push(new Date(d.timestamp*1000).toLocaleTimeString());
+
+    time.push(
+      new Date(d.timestamp * 1000).toLocaleTimeString("en-GB", {
+        timeZone: "Asia/Bangkok",
+        hour12: false
+      })
+    );
+
     t.push(d.temperature);
     h.push(d.humidity);
     p25.push(d.pm25);
     p10.push(d.pm10);
+    g.push(d.gas);  // ⭐ อ่านค่า gas
   });
 
   labels=time.slice(-8);
@@ -146,6 +163,7 @@ onValue(ref(db,"envLogs"),(snapshot)=>{
   humData=h.slice(-8);
   pm25Data=p25.slice(-8);
   pm10Data=p10.slice(-8);
+  gasData=g.slice(-8);
 
   tempChart.data.labels=labels;
   tempChart.data.datasets[0].data=tempData;
@@ -162,6 +180,10 @@ onValue(ref(db,"envLogs"),(snapshot)=>{
   pm10Chart.data.labels=labels;
   pm10Chart.data.datasets[0].data=pm10Data;
   pm10Chart.update();
+
+  gasChart.data.labels=labels;         // ⭐ update gas
+  gasChart.data.datasets[0].data=gasData;
+  gasChart.update();
 });
 </script>
 
