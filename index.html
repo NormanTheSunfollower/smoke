@@ -155,7 +155,7 @@ onValue(ref(db,"envLogs"),(snapshot)=>{
     h.push(d.humidity);
     p25.push(d.pm25);
     p10.push(d.pm10);
-    g.push(d.gas);  // ⭐ อ่านค่า gas
+    g.push(d.smoke);  // ⭐ อ่านค่า gas
   });
 
   labels=time.slice(-8);

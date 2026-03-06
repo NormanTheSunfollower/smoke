@@ -167,7 +167,7 @@ function renderTable(){
 
     if(selectedDate && dateInfo.iso !== selectedDate) return;
 
-    const status = getStatus(d.pm25, d.pm10, d.gas);
+    const status = getStatus(d.pm25, d.pm10, d.smoke);
 
     const row = document.createElement("tr");
 
@@ -181,7 +181,7 @@ function renderTable(){
       <td>${d.humidity.toFixed(2)}</td>
       <td>${d.pm25}</td>
       <td>${d.pm10}</td>
-      <td>${d.gas ?? "-"}</td>  <!-- ⭐ แสดง gas -->
+      <td>${d.smoke ?? "-"}</td><!-- ⭐ แสดง gas -->
       <td><strong>${status.text}</strong></td>
     `;
 
